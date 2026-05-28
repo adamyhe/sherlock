@@ -1,0 +1,42 @@
+Bootstrap: docker
+From: kundajelab/chrombpnet:latest
+
+%labels
+    Author Adam He
+    Description ChromBPNet Python API and CLI Apptainer image converted from kundajelab/chrombpnet:latest
+    Upstream https://hub.docker.com/r/kundajelab/chrombpnet
+
+%post
+    set -eu
+
+    # The upstream Docker image installs ChromBPNet editable from
+    # /scratch/chrombpnet. Keep an unmasked copy in /opt so the Python API
+    # remains importable when users bind Sherlock scratch onto /scratch.
+    if [ ! -d /scratch/chrombpnet ]; then
+        echo "Expected upstream ChromBPNet source at /scratch/chrombpnet; cannot expose Python API." >&2
+        exit 1
+    fi
+
+    rm -rf /opt/chrombpnet
+    cp -a /scratch/chrombpnet /opt/chrombpnet
+    /opt/conda/bin/python -m pip install --no-deps /opt/chrombpnet
+    /opt/conda/bin/python -c "import chrombpnet; print(chrombpnet.__file__)"
+
+%environment
+    export PYTHONNOUSERSITE=1
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+    export PATH=/opt/conda/bin:/opt/google-cloud-sdk/bin:$PATH
+    export CHROMBPNET_SOURCE=/opt/chrombpnet
+    export PYTHONPATH=/opt/chrombpnet${PYTHONPATH:+:$PYTHONPATH}
+    export NUMBA_CACHE_DIR=/tmp/numba_cache
+    export XDG_CACHE_HOME=/tmp/.cache
+    export MPLCONFIGDIR=/tmp/matplotlib
+
+%runscript
+    exec "$@"
+
+%test
+    which chrombpnet
+    chrombpnet --help >/dev/null
+    python -c "import chrombpnet, importlib.util, tensorflow as tf; assert importlib.util.find_spec('chrombpnet') is not None; print('chrombpnet API ok; tensorflow', tf.__version__)"
