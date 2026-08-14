@@ -1,0 +1,73 @@
+Bootstrap: docker
+From: python:3.12-slim
+
+%post
+    set -eu
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        git ca-certificates build-essential \
+        libcurl4-openssl-dev libssl-dev libbz2-dev liblzma-dev zlib1g-dev
+    rm -rf /var/lib/apt/lists/*
+
+    python -m pip install --upgrade pip setuptools wheel
+
+    # jax[cuda12] and tensorflow[and-cuda] bundle their own CUDA/cuDNN
+    # userspace libraries as pip wheels, instead of the cuda12-local extra
+    # (used previously in a bare Sherlock venv) which requires the host's
+    # `ml cuda/...`/`ml cudnn/...` modules to exactly match what JAX was
+    # built against. Bundling makes the image self-contained: only the
+    # NVIDIA driver needs to come from the host, via `apptainer --nv`.
+    python -m pip install --only-binary=:all: "scipy==1.12.0" "ml-dtypes==0.5.0"
+    python -m pip install "jax[cuda12]==0.7.0"
+    python -m pip install --only-binary=:all: "h5py==3.12.1"
+    python -m pip install --only-binary=:all: "tensorflow[and-cuda]==2.18.1"
+
+    python -m pip install --only-binary=:all: \
+        absl-py \
+        anndata \
+        einshape \
+        "etils[epath]" \
+        huggingface_hub \
+        jaxtyping \
+        kagglehub \
+        pandas \
+        pyBigWig \
+        pyarrow \
+        pyfaidx \
+        immutabledict \
+        intervaltree \
+        matplotlib \
+        seaborn \
+        zstandard \
+        typeguard \
+        typing_extensions \
+        tqdm \
+        "protobuf>=5.28.3" \
+        "grpcio>=1.67.1"
+
+    # sorted-nearest ships no wheel for this interpreter/platform combo, so
+    # it builds from source; cython must be present first.
+    python -m pip install cython
+    python -m pip install "sorted-nearest>=0.0.41"
+    python -m pip install "pyranges==0.1.4"
+    python -m pip install --only-binary=:all: chex dm-haiku optax orbax
+    python -m pip install --no-deps alphagenome
+
+    # Pinned to an exact commit rather than a branch so the image is
+    # reproducible even if upstream's default branch moves.
+    python -m pip install --no-deps \
+        "alphagenome_research @ git+https://github.com/google-deepmind/alphagenome_research.git@1e55dcffb98ba26b31e74edc5e9f038f54c0e89d"
+
+    python -c "import jax, tensorflow, alphagenome, alphagenome_research"
+
+%environment
+    export PYTHONNOUSERSITE=1
+    export XDG_CACHE_HOME=/tmp/.cache
+    export MPLCONFIGDIR=/tmp/matplotlib
+
+%runscript
+    exec "$@"
+
+%test
+    python -c "import jax; import tensorflow as tf; import alphagenome; import alphagenome_research; print('alphagenome API ok; jax', jax.__version__, 'tensorflow', tf.__version__)"

@@ -23,7 +23,7 @@ apptainer build --fakeroot chrombpnet.sif chrombpnet.def
 
 ## Use the Python API
 
-Run Python inside the image and import ChromBPNet directly:
+Request a GPU node before running anything training- or inference-heavy (`salloc -c 2 --mem=16G --gpus=1 --partition=dev -t 2:00:00`), then run Python inside the image and import ChromBPNet directly:
 
 ```bash
 apptainer exec --nv chrombpnet.sif \
@@ -72,3 +72,7 @@ apptainer exec --nv \
   chrombpnet.sif \
   chrombpnet pipeline --help
 ```
+
+## Environment
+
+`chrombpnet.def`'s `%environment` sets `CHROMBPNET_SOURCE=/opt/chrombpnet` and prepends it to `PYTHONPATH`, so the Python API resolves to the copy under `/opt` (see the note above about why it isn't imported straight from `/scratch/chrombpnet`) regardless of what's bound onto `/scratch` at runtime. It also points `NUMBA_CACHE_DIR`, `XDG_CACHE_HOME`, and `MPLCONFIGDIR` at paths under `/tmp`, which is ephemeral per job — bind a scratch directory over one of these (e.g. `--bind "$SCRATCH/numba-cache:/tmp/numba_cache"`) if you want cached artifacts to persist across jobs.
