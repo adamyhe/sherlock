@@ -76,7 +76,6 @@ From: nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
 
     python -m pip install \
         "git+https://github.com/genomicsxai/alphagenome-pytorch.git@${ALPHAGENOME_PYTORCH_REF}" \
-    export TMP=/tmp
         tangermeme \
         "genvarloader>=0.25.0"
     rm -rf /opt/apptainer-build-cache
