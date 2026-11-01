@@ -9,7 +9,7 @@ This is not an application codebase — it's a collection of reproducible enviro
 ## Repo layout
 
 - `alphagenome/` — `alphagenome.def` (Apptainer definition, built `FROM python:3.12-slim`) + `README.md` with build/run invocations, for JAX+CUDA, TensorFlow, and the `alphagenome`/`alphagenome_research` packages.
-- `cherimoya/` — `cherimoya.def` (Apptainer definition, built `FROM pytorch/pytorch`) + `README.md` with the `apptainer build` invocation.
+- `cherimoya/` — one Apptainer definition per Cherimoya release, named `cherimoya-<version>.def` (or `cherimoya-<short commit>.def` for a commit-pinned build that doesn't match a clean release, e.g. `cherimoya-8e4283f.def`), all built `FROM pytorch/pytorch`, + `README.md` with a version table and the `apptainer build` invocation. Add a new file for each release rather than editing an existing one.
 - `chrombpnet/` — `chrombpnet.def` (Apptainer definition, built `FROM kundajelab/chrombpnet:latest`) + `README.md` with build/run invocations.
 - `torch_source.sh` — a snippet that loads Sherlock environment modules (`ml cuda/...`, `ml gcc/...`, etc.) and activates a `torch` miniforge env. Meant to be sourced at the start of a Sherlock session for non-containerized PyTorch work, not executed as a standalone script.
 
@@ -17,10 +17,10 @@ All three tools used to have (or, for AlphaGenome, still had until recently) ins
 
 ## Working with the Apptainer `.def` files
 
-`cherimoya/cherimoya.def`, `chrombpnet/chrombpnet.def`, and `alphagenome/alphagenome.def` exist because Sherlock's system compiler/OS is too old to install these packages' dependencies directly — the container sidesteps the host toolchain entirely. Keep that constraint in mind when editing:
+`cherimoya/cherimoya-*.def`, `chrombpnet/chrombpnet.def`, and `alphagenome/alphagenome.def` exist because Sherlock's system compiler/OS is too old to install these packages' dependencies directly — the container sidesteps the host toolchain entirely. Keep that constraint in mind when editing:
 
 - Prefer `--no-deps` pip installs for the target package itself when the base Docker image (or an earlier pip install in the same `.def`) already provides a specific, load-bearing version of a dependency (e.g. cherimoya's base image pins `torch==2.13.0+cu126`; a dependency-resolving install would silently replace it).
-- When pinning a package to a git commit instead of a released tag/PyPI version (as `cherimoya.def` and `alphagenome.def` do for `cherimoya` and `alphagenome_research` respectively), that's deliberate — check the surrounding comment before "simplifying" it back to a version pin, since upstream tags can be force-moved and unpinned branches aren't reproducible.
+- When pinning a package to a git commit instead of a released tag/PyPI version (as `cherimoya-8e4283f.def`, `cherimoya-0.3.1.def`, and `alphagenome.def` do for `cherimoya` and `alphagenome_research` respectively), that's deliberate — check the surrounding comment before "simplifying" it back to a version pin, since upstream tags can be force-moved and unpinned branches aren't reproducible.
 - Prefer CUDA delivery via pip wheels bundled with the framework (`jax[cuda12]`, `tensorflow[and-cuda]`) over extras like `cuda12-local` that expect a matching system CUDA toolkit — that's the whole point of containerizing instead of relying on Sherlock's `ml cuda/...` modules.
 - `chrombpnet.def` copies the upstream editable install from `/scratch/chrombpnet` to `/opt/chrombpnet` and reinstalls from there — this is so the Python API stays importable even when Sherlock scratch is bind-mounted over `/scratch` at runtime (which would otherwise shadow the package source). Don't remove this copy step.
 - Rebuild with `apptainer build <name>.sif <name>.def` from inside each tool's directory; use `--fakeroot` with `APPTAINER_CACHEDIR`/`APPTAINER_TMPDIR` pointed at `$SCRATCH` if the build node lacks a writable default cache (documented in each tool's `README.md`).
